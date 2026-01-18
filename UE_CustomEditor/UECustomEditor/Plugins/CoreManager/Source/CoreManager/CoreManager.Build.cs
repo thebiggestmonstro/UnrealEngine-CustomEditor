@@ -17,7 +17,7 @@ public class CoreManager : ModuleRules
 		
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				// ... add other private include paths required here ...
+				System.IO.Path.GetFullPath(Target.RelativeEnginePath) + "/Source/Editor/Blutility/Private" // Blutility 모듈을 참조하기 위한 엔진 상대경로 사용
 			}
 			);
 			
@@ -26,9 +26,10 @@ public class CoreManager : ModuleRules
 			new string[]
 			{
 				"Core",
+                "Blutility",     
 				// ... add other public dependencies that you statically link with here ...
 			}
-			);
+            );
 			
 		
 		PrivateDependencyModuleNames.AddRange(
