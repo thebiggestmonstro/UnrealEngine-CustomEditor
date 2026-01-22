@@ -10,7 +10,7 @@ void UQuickAssetActions::DuplicateAssets(int32 NumOfDuplicates)
 {
 	if (NumOfDuplicates <= 0)
 	{
-		Print(TEXT("Please Enter a Valid Number"), FColor::Red);
+		ShowMsgDialog(EAppMsgType::Ok, TEXT("Please enter a VALID number"));
 		return;
 	}
 
@@ -35,6 +35,59 @@ void UQuickAssetActions::DuplicateAssets(int32 NumOfDuplicates)
 
 	if (Counter > 0)
 	{
-		Print(TEXT("Successfully Duplicated " + FString::FromInt(Counter) + "files"), FColor::Green);
+		ShowNotifyInfo(TEXT("Successfully duplicated " + FString::FromInt(Counter) + " files"));
+	}
+}
+
+void UQuickAssetActions::AddPrefixes()
+{
+	TArray<UObject*>SelectedObjects = UEditorUtilityLibrary::GetSelectedAssets();
+	uint32 Counter = 0;
+
+	for (UObject* SelectedObject : SelectedObjects)
+	{
+		if (!SelectedObject)
+		{
+			continue;
+		}
+
+		FString* PrefixFound = PrefixMap.Find(SelectedObject->GetClass());
+		FString OldName = SelectedObject->GetName();
+
+		// 탐색한 애셋 타입 + 타입별 접두사가 존재하지않는 경우
+		if (!PrefixFound || PrefixFound->IsEmpty())
+		{
+			Print(TEXT("Failed to find prefix for class ") + SelectedObject->GetClass()->GetName(), FColor::Red);
+			continue;
+		}
+
+		// 선택한 애셋이 이미 타입별 접두사로 이름 붙여진 경우
+		if (OldName.StartsWith(*PrefixFound))
+		{
+			Print(OldName + TEXT(" already has prefix added"), FColor::Red);
+			continue;
+		}
+
+		// Material Instance 애셋의 경우 원본 머티리얼의 접두사를 이름에서 제거
+		if (SelectedObject->IsA<UMaterialInstanceConstant>())
+		{
+			OldName.RemoveFromStart(TEXT("M_"));
+			OldName.RemoveFromEnd(TEXT("_Inst"));
+		}
+
+		// 선택한 애셋에 타입별 접두사를 수식
+		const FString NewNameWithPrefix = *PrefixFound + OldName;
+		UEditorUtilityLibrary::RenameAsset(SelectedObject, NewNameWithPrefix);
+
+		// 선택한 애셋의 이름이 완전히 수정되었는지 확인
+		if (SelectedObject->GetName() == NewNameWithPrefix)
+		{
+			++Counter;
+		}
+	}
+
+	if (Counter > 0)
+	{
+		ShowNotifyInfo(TEXT("Successfully renamed " + FString::FromInt(Counter) + " assets"));
 	}
 }

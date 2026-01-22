@@ -28,6 +28,8 @@ public class CoreManager : ModuleRules
 				"Core",
                 "Blutility",
                 "EditorScriptingUtilities",
+                "UMG",
+				"Niagara",
 				// ... add other public dependencies that you statically link with here ...
 			}
             );
@@ -38,8 +40,8 @@ public class CoreManager : ModuleRules
 			{
 				"CoreUObject",
 				"Engine",
-				"Slate",
-				"SlateCore",
+                "Slate",
+                "SlateCore",
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
