@@ -30,6 +30,8 @@ public class CoreManager : ModuleRules
                 "EditorScriptingUtilities",
                 "UMG",
 				"Niagara",
+                "UnrealEd",
+                "AssetTools",
 				// ... add other public dependencies that you statically link with here ...
 			}
             );
