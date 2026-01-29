@@ -21,6 +21,7 @@ private:
 	void AddContentBrowserMenuEntry(class FMenuBuilder& MenuBuilder);
 	// 설정한 기능을 수행하는 함수
 	void OnDeleteUnsuedAssetButtonClicked();
+	void OnDeleteEmptyFoldersButtonClicked();
 
 	void FixUpRedirectors(const FString& InSelectedPath);
 

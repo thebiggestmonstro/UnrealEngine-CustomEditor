@@ -25,7 +25,7 @@ void UQuickAssetActions::DuplicateAssets(int32 NumOfDuplicates)
 	{
 		for (int32 i = 0; i < NumOfDuplicates; i++)
 		{
-			const FString SourceAssetPath = SelectedAssetData.ObjectPath.ToString();
+			const FString SourceAssetPath = SelectedAssetData.GetSoftObjectPath().ToString();
 			const FString NewDuplicateAssetNamae = SelectedAssetData.AssetName.ToString() + TEXT("_") + FString::FromInt(i + 1);
 			const FString NewPathName = FPaths::Combine(SelectedAssetData.PackagePath.ToString(), NewDuplicateAssetNamae);
 
@@ -103,7 +103,7 @@ void UQuickAssetActions::RemoveUnusedAssets()
 	// 선택한 애셋 데이터들을 순회
 	for (const FAssetData& SelectedAssetData : SelectedAssetsData)
 	{
-		TArray<FString> AssetRefrencers = UEditorAssetLibrary::FindPackageReferencersForAsset(SelectedAssetData.ObjectPath.ToString());
+		TArray<FString> AssetRefrencers = UEditorAssetLibrary::FindPackageReferencersForAsset(SelectedAssetData.GetSoftObjectPath().ToString());
 
 		// 선택한 애셋 데이터들중에서 참조되고 있지 않은 애셋들은 제거를 위한 컨테이너에 추기
 		if (AssetRefrencers.Num() == 0)

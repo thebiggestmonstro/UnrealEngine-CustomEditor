@@ -23,23 +23,26 @@ void FCoreManagerModule::InitContentBrowserMenuExtention()
 {
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
 
+	//Get hold of all the menu extenders
 	TArray<FContentBrowserMenuExtender_SelectedPaths>& ContentBrowserModuleMenuExtenders = ContentBrowserModule.GetAllPathViewContextMenuExtenders();
 
 	FContentBrowserMenuExtender_SelectedPaths CustomContentBrowserMenuDelegate;
 
+	//We add custom delete to all the existing delegate
 	ContentBrowserModuleMenuExtenders.Add(FContentBrowserMenuExtender_SelectedPaths::CreateRaw(this, &FCoreManagerModule::CustomContentBrowserMenuExtender));
 }
 
+//To define the positio for inserting menu entry
 TSharedRef<FExtender> FCoreManagerModule::CustomContentBrowserMenuExtender(const TArray<FString>& SelectedPaths)
 {
 	TSharedRef<FExtender> MenuExtender(new FExtender());
 
 	if (SelectedPaths.Num() > 0)
 	{
-		MenuExtender->AddMenuExtension(FName("Delete"),
-			EExtensionHook::After,
-			TSharedPtr<FUICommandList>(),
-			FMenuExtensionDelegate::CreateRaw(this, &FCoreManagerModule::AddContentBrowserMenuEntry));
+		MenuExtender->AddMenuExtension(FName("Delete"), //Extend hook, position to insert
+			EExtensionHook::After,						//Insert before or after
+			TSharedPtr<FUICommandList>(),				//Custom hot keys 
+			FMenuExtensionDelegate::CreateRaw(this, &FCoreManagerModule::AddContentBrowserMenuEntry)); //Second binding, will define details for this menu entry
 
 		FolderPathsSelected = SelectedPaths;
 	}
@@ -47,14 +50,23 @@ TSharedRef<FExtender> FCoreManagerModule::CustomContentBrowserMenuExtender(const
 	return MenuExtender;
 }
 
+//Define details for the custom menu entry
 void FCoreManagerModule::AddContentBrowserMenuEntry(FMenuBuilder& MenuBuilder)
 {
 	MenuBuilder.AddMenuEntry
 	(
-		FText::FromString(TEXT("Delete Unused Assets")),
-		FText::FromString(TEXT("Safely delete all unused assets under folder")),
-		FSlateIcon(),
-		FExecuteAction::CreateRaw(this, &FCoreManagerModule::OnDeleteUnsuedAssetButtonClicked)
+		FText::FromString(TEXT("Delete Unused Assets")),							//Title text for menu entry
+		FText::FromString(TEXT("Safely delete all unused assets under folder")),	//Tooltip text
+		FSlateIcon(),																//Custom icon
+		FExecuteAction::CreateRaw(this, &FCoreManagerModule::OnDeleteUnsuedAssetButtonClicked) //The actual function to excute
+	);
+
+	MenuBuilder.AddMenuEntry
+	(
+		FText::FromString(TEXT("Delete Empty Folders")), //Title text for menu entry
+		FText::FromString(TEXT("Safely delete all empty folders")), //Tooltip text
+		FSlateIcon(),	//Custom icon
+		FExecuteAction::CreateRaw(this, &FCoreManagerModule::OnDeleteEmptyFoldersButtonClicked) //The actual function to excute
 	);
 }
 
@@ -70,12 +82,12 @@ void FCoreManagerModule::OnDeleteUnsuedAssetButtonClicked()
 
 	if (AssetsPathNames.Num() == 0)
 	{
-		DebugHeader::ShowMsgDialog(EAppMsgType::Ok, TEXT("No asset found under selected folder"));
+		DebugHeader::ShowMsgDialog(EAppMsgType::Ok, TEXT("No asset found under selected folder"), false);
 		return;
 	}
 
-	EAppReturnType::Type ConfirmResult = DebugHeader::ShowMsgDialog(EAppMsgType::YesNo, TEXT("A total of ") + FString::FromInt(AssetsPathNames.Num()) + TEXT(" found.\nWoudle you like to procceed?"));
-
+	EAppReturnType::Type ConfirmResult = DebugHeader::ShowMsgDialog(EAppMsgType::YesNo, TEXT("A total of ") + FString::FromInt(AssetsPathNames.Num())
+		+ TEXT(" assets need to be checked.\nWould you like to procceed?"), false);
 	if (ConfirmResult == EAppReturnType::No)
 	{
 		return;
@@ -87,7 +99,9 @@ void FCoreManagerModule::OnDeleteUnsuedAssetButtonClicked()
 
 	for (const FString& AssetPathName : AssetsPathNames)
 	{
-		if (AssetPathName.Contains(TEXT("Developers")) || AssetPathName.Contains(TEXT("Collections")))
+		if (AssetPathName.Contains(TEXT("Developers")) || AssetPathName.Contains(TEXT("Collections")) ||
+			AssetPathName.Contains(TEXT("__ExternalActors__")) ||
+			AssetPathName.Contains(TEXT("__ExternalObjects__")))
 		{
 			continue;
 		}
@@ -112,7 +126,75 @@ void FCoreManagerModule::OnDeleteUnsuedAssetButtonClicked()
 	}
 	else
 	{
-		DebugHeader::ShowMsgDialog(EAppMsgType::Ok, TEXT("No unused asset found under selected folder"));
+		DebugHeader::ShowMsgDialog(EAppMsgType::Ok, TEXT("No unused asset found under selected folder"), false);
+	}
+}
+
+void FCoreManagerModule::OnDeleteEmptyFoldersButtonClicked()
+{
+	FixUpRedirectors(FolderPathsSelected[0]);
+
+	TArray<FString> FolderPathsArray = UEditorAssetLibrary::ListAssets(FolderPathsSelected[0], true, true);
+	uint32 Counter = 0;
+
+	FString EmptyFolderPathsNames;
+	TArray<FString> EmptyFoldersPathsArray;
+
+	for (const FString& FolderPath : FolderPathsArray)
+	{
+		if (FolderPath.Contains(TEXT("Developers")) ||
+			FolderPath.Contains(TEXT("Collections")) ||
+			FolderPath.Contains(TEXT("__ExternalActors__")) ||
+			FolderPath.Contains(TEXT("__ExternalObjects__")))
+		{
+			continue;
+		}
+
+		if (!UEditorAssetLibrary::DoesDirectoryExist(FolderPath))
+		{
+			continue;
+		}
+
+		FString Path = FolderPath;
+		FPaths::NormalizeDirectoryName(Path);
+		Path.RemoveFromEnd(TEXT("/"));
+		if (!UEditorAssetLibrary::DoesDirectoryHaveAssets(Path, false))
+		{
+			EmptyFolderPathsNames += Path + TEXT("\n");
+			EmptyFoldersPathsArray.Add(Path);
+		}
+		
+	}
+
+	if (EmptyFoldersPathsArray.Num() == 0)
+	{
+		DebugHeader::ShowMsgDialog(EAppMsgType::Ok, TEXT("No empty folder found under selected folder"), false);
+		return;
+	}
+
+	EAppReturnType::Type ConfirmResult = DebugHeader::ShowMsgDialog(EAppMsgType::OkCancel,
+		TEXT("Empty folders found in:\n") + EmptyFolderPathsNames + TEXT("\nWould you like to delete all?"), false);
+
+	if (ConfirmResult == EAppReturnType::Cancel)
+	{
+		return;
+	}
+
+	for (const FString& EmptyFolderPath : EmptyFoldersPathsArray)
+	{
+		if (UEditorAssetLibrary::DeleteDirectory(EmptyFolderPath))
+		{
+			++Counter;
+		}
+		else
+		{
+			DebugHeader::Print(TEXT("Failed to delete " + EmptyFolderPath), FColor::Red);
+		}
+	}
+
+	if (Counter > 0)
+	{
+		DebugHeader::ShowNotifyInfo(TEXT("Successfully deleted ") + FString::FromInt(Counter) + TEXT(" folders"));
 	}
 }
 
