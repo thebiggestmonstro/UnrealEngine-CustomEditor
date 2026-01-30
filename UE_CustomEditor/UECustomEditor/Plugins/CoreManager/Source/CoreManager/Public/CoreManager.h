@@ -23,7 +23,9 @@ private:
 	void OnDeleteUnsuedAssetButtonClicked();
 	void OnDeleteEmptyFoldersButtonClicked();
 
+	void PrepareAssetEnvironment(const FString& InSelectedPath);
 	void FixUpRedirectors(const FString& InSelectedPath);
+	void SaveWorldIfDirty();
 
 	TArray<FString> FolderPathsSelected;
 };

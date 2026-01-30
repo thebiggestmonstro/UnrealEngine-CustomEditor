@@ -7,6 +7,8 @@
 #include "ObjectTools.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
+#include "LevelEditorSubsystem.h"
+
 #define LOCTEXT_NAMESPACE "FCoreManagerModule"
 
 void FCoreManagerModule::StartupModule()
@@ -93,7 +95,7 @@ void FCoreManagerModule::OnDeleteUnsuedAssetButtonClicked()
 		return;
 	}
 
-	FixUpRedirectors(FolderPathsSelected[0]);
+	PrepareAssetEnvironment(FolderPathsSelected[0]);
 
 	TArray<FAssetData> UnusedAssetsDataArray;
 
@@ -132,7 +134,7 @@ void FCoreManagerModule::OnDeleteUnsuedAssetButtonClicked()
 
 void FCoreManagerModule::OnDeleteEmptyFoldersButtonClicked()
 {
-	FixUpRedirectors(FolderPathsSelected[0]);
+	PrepareAssetEnvironment(FolderPathsSelected[0]);
 
 	TArray<FString> FolderPathsArray = UEditorAssetLibrary::ListAssets(FolderPathsSelected[0], true, true);
 	uint32 Counter = 0;
@@ -198,6 +200,23 @@ void FCoreManagerModule::OnDeleteEmptyFoldersButtonClicked()
 	}
 }
 
+void FCoreManagerModule::PrepareAssetEnvironment(const FString& InSelectedPath)
+{
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	TArray<FAssetData> AssetDataList;
+
+	AssetRegistryModule.Get().GetAssetsByPath(FName(*InSelectedPath), AssetDataList, true);
+
+	FixUpRedirectors(InSelectedPath);
+
+	for (const FAssetData& AssetData : AssetDataList)
+	{
+		UEditorAssetLibrary::SaveAsset(AssetData.GetSoftObjectPath().ToString(), false);
+	}
+
+	SaveWorldIfDirty();
+}
+
 void FCoreManagerModule::FixUpRedirectors(const FString& InSelectedPath)
 {
 	TArray<UObjectRedirector*> RedirectorsToFixArray;
@@ -224,6 +243,27 @@ void FCoreManagerModule::FixUpRedirectors(const FString& InSelectedPath)
 	{
 		FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
 		AssetToolsModule.Get().FixupReferencers(RedirectorsToFixArray);
+	}
+}
+
+void FCoreManagerModule::SaveWorldIfDirty()
+{
+	if (GEditor)
+	{
+		if (ULevelEditorSubsystem* LevelEditorSubsystem = GEditor->GetEditorSubsystem<ULevelEditorSubsystem>())
+		{
+			if (UWorld* World = GEditor->GetEditorWorldContext().World())
+			{
+				if (ULevel* CurrentLevel = World->GetCurrentLevel())
+				{
+					UPackage* DirtyMapPackage = CurrentLevel->GetOutermost();
+					if (DirtyMapPackage->IsDirty())
+					{
+						LevelEditorSubsystem->SaveCurrentLevel();
+					}
+				}
+			}
+		}
 	}
 }
 

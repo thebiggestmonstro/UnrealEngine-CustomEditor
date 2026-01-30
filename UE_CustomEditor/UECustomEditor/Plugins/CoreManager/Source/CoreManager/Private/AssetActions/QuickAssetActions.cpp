@@ -9,6 +9,7 @@
 #include "AssetToolsModule.h"
 #include "AssetViewUtils.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "LevelEditorSubsystem.h"
 
 void UQuickAssetActions::DuplicateAssets(int32 NumOfDuplicates)
 {
@@ -97,8 +98,7 @@ void UQuickAssetActions::RemoveUnusedAssets()
 	TArray<FAssetData> UnusedAssetsData;
 
 	// 선택한 애셋들의 리디렉터 파일 수정
-	TArray<FName> PathsToFix = GetTopLevelPackagePath(SelectedAssetsData);
-	FixUpRedirectors(PathsToFix);
+	PrepareAssetEnvironment(SelectedAssetsData);
 
 	// 선택한 애셋 데이터들을 순회
 	for (const FAssetData& SelectedAssetData : SelectedAssetsData)
@@ -128,6 +128,27 @@ void UQuickAssetActions::RemoveUnusedAssets()
 
 	// 제거한 애셋의 개수를 출력
 	DebugHeader::ShowNotifyInfo(TEXT("Successfully deleted " + FString::FromInt(NumOfAssetsDeleted) + TEXT(" unused assets")));
+}
+
+void UQuickAssetActions::PrepareAssetEnvironment(TArray<FAssetData> SelectedAssetsData)
+{
+	TArray<FName> PackagePaths;
+	for (const FAssetData& AssetData : SelectedAssetsData)
+	{
+		PackagePaths.AddUnique(AssetData.PackagePath);
+	}
+
+	if (PackagePaths.Num() > 0)
+	{
+		FixUpRedirectors(PackagePaths);
+	}
+
+	for (auto AssetsData : SelectedAssetsData)
+	{
+		UEditorAssetLibrary::SaveAsset(AssetsData.GetSoftObjectPath().ToString(), false);
+	}
+
+	SaveWorldIfDirty();
 }
 
 void UQuickAssetActions::FixUpRedirectors(const TArray<FName>& PackagePaths)
@@ -192,29 +213,23 @@ void UQuickAssetActions::FixUpRedirectors(const TArray<FName>& PackagePaths)
 	}
 }
 
-TArray<FName> UQuickAssetActions::GetTopLevelPackagePath(const TArray<FAssetData>& Array)
+void UQuickAssetActions::SaveWorldIfDirty()
 {
-	TSet<FName> TopLevelPaths;
-
-	for (const FAssetData& AssetData : Array)
+	if (GEditor)
 	{
-		FString Path = AssetData.PackagePath.ToString();
-		if (Path.IsEmpty())
+		if (ULevelEditorSubsystem* LevelEditorSubsystem = GEditor->GetEditorSubsystem<ULevelEditorSubsystem>())
 		{
-			continue;
-		}
-
-		int32 SecondSlashIdx = Path.Find(TEXT("/"), ESearchCase::IgnoreCase, ESearchDir::FromStart, 1);
-
-		if (SecondSlashIdx != INDEX_NONE)
-		{
-			TopLevelPaths.Add(*Path.Left(SecondSlashIdx));
-		}
-		else
-		{
-			TopLevelPaths.Add(*Path);
+			if (UWorld* World = GEditor->GetEditorWorldContext().World())
+			{
+				if (ULevel* CurrentLevel = World->GetCurrentLevel())
+				{
+					UPackage* DirtyMapPackage = CurrentLevel->GetOutermost();
+					if (DirtyMapPackage->IsDirty())
+					{
+						LevelEditorSubsystem->SaveCurrentLevel();
+					}
+				}
+			}
 		}
 	}
-
-	return TopLevelPaths.Array();
 }

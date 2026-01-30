@@ -55,6 +55,7 @@ private:
 		{UNiagaraEmitter::StaticClass(), TEXT("NE_")}
 	};
 
+	void PrepareAssetEnvironment(TArray<FAssetData> SelectedAssetsData);
 	void FixUpRedirectors(const TArray<FName>& PackagePaths);
-	TArray<FName> GetTopLevelPackagePath(const TArray<FAssetData>& Array);
+	void SaveWorldIfDirty();
 };
