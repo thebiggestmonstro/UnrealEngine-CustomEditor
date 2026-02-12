@@ -14,6 +14,7 @@
 void FCoreManagerModule::StartupModule()
 {
 	InitContentBrowserMenuExtention();
+	RegisterAdvanceDeletionTab();
 }
 
 void FCoreManagerModule::ShutdownModule()
@@ -69,6 +70,14 @@ void FCoreManagerModule::AddContentBrowserMenuEntry(FMenuBuilder& MenuBuilder)
 		FText::FromString(TEXT("Safely delete all empty folders")), //Tooltip text
 		FSlateIcon(),	//Custom icon
 		FExecuteAction::CreateRaw(this, &FCoreManagerModule::OnDeleteEmptyFoldersButtonClicked) //The actual function to excute
+	);
+
+	MenuBuilder.AddMenuEntry
+	(
+		FText::FromString(TEXT("Advance Deletion")), //Title text for menu entry
+		FText::FromString(TEXT("List assets by specific condition in a tab for deleting")), //Tooltip text
+		FSlateIcon(),	//Custom icon
+		FExecuteAction::CreateRaw(this, &FCoreManagerModule::OnAdvanceDeletionButtonClicked) //The actual function to excute
 	);
 }
 
@@ -200,6 +209,11 @@ void FCoreManagerModule::OnDeleteEmptyFoldersButtonClicked()
 	}
 }
 
+void FCoreManagerModule::OnAdvanceDeletionButtonClicked()
+{
+	FGlobalTabmanager::Get()->TryInvokeTab(FName("AdvanceDeletion"));
+}
+
 void FCoreManagerModule::PrepareAssetEnvironment(const FString& InSelectedPath)
 {
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
@@ -265,6 +279,18 @@ void FCoreManagerModule::SaveWorldIfDirty()
 			}
 		}
 	}
+}
+
+void FCoreManagerModule::RegisterAdvanceDeletionTab()
+{
+	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FName("AdvanceDeletion")
+		,FOnSpawnTab::CreateRaw(this, &FCoreManagerModule::OnSpawnAdvanceDeltionTab)).SetDisplayName(FText::FromString(TEXT("Advance Deletion"))
+	);
+}
+
+TSharedRef<SDockTab> FCoreManagerModule::OnSpawnAdvanceDeltionTab(const FSpawnTabArgs& SpawnTabArgs)
+{
+	return SNew(SDockTab).TabRole(ETabRole::NomadTab);
 }
 
 #undef LOCTEXT_NAMESPACE

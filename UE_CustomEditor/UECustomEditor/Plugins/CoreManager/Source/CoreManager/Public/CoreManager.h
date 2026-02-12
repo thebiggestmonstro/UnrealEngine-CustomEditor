@@ -22,10 +22,16 @@ private:
 	// 설정한 기능을 수행하는 함수
 	void OnDeleteUnsuedAssetButtonClicked();
 	void OnDeleteEmptyFoldersButtonClicked();
+	void OnAdvanceDeletionButtonClicked();
 
+	// ContentBrowserMenuExtention
 	void PrepareAssetEnvironment(const FString& InSelectedPath);
 	void FixUpRedirectors(const FString& InSelectedPath);
 	void SaveWorldIfDirty();
+
+	// CustomEditorTab
+	void RegisterAdvanceDeletionTab();
+	TSharedRef<SDockTab> OnSpawnAdvanceDeltionTab(const FSpawnTabArgs& SpawnTabArgs);
 
 	TArray<FString> FolderPathsSelected;
 };
