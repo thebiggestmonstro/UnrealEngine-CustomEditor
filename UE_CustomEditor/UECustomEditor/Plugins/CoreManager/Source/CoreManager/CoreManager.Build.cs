@@ -36,6 +36,7 @@ public class CoreManager : ModuleRules
                 "LevelEditor",
                 "Slate",
 				"SlateCore",
+                "InputCore",
 				// ... add other public dependencies that you statically link with here ...
 			}
             );
