@@ -34,5 +34,9 @@ private:
 	TSharedRef<SDockTab> OnSpawnAdvanceDeltionTab(const FSpawnTabArgs& SpawnTabArgs);
 	TArray<TSharedPtr<FAssetData>> GetAllAssetDataUnderSelectedFolder();
 
+public:
+	// ProccessDataForAdvanceDeletionTab
+	bool DeleteSingleAssetForAssetList(const FAssetData& AssetDataToDelete);
+
 	TArray<FString> FolderPathsSelected;
 };
