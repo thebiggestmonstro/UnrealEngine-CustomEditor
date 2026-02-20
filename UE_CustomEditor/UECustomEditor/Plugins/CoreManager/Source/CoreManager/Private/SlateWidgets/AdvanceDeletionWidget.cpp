@@ -8,6 +8,9 @@ void SAdvanceDeletionTab::Construct(const FArguments& InArgs)
 	bCanSupportFocus = true;
 
 	StoredAssetsData = InArgs._AssetsDataToStore;
+	CheckBoxesArray.Empty();
+	AssetsDataToDeleteArray.Empty();
+
 	FSlateFontInfo TitleTextFont = FCoreStyle::Get().GetFontStyle(FName("EmbossedText"));
 	TitleTextFont.Size = 30;
 
@@ -50,6 +53,30 @@ void SAdvanceDeletionTab::Construct(const FArguments& InArgs)
 				.AutoHeight()
 				[
 					SNew(SHorizontalBox)
+
+						//Button1 slot
+						+ SHorizontalBox::Slot()
+						.FillWidth(10.f)
+						.Padding(5.f)
+						[
+							ConstructDeleteAllButton()
+						]
+
+						//Button2 slot
+						+ SHorizontalBox::Slot()
+						.FillWidth(10.f)
+						.Padding(5.f)
+						[
+							ConstructSelectAllButton()
+						]
+
+						//Button3 slot
+						+ SHorizontalBox::Slot()
+						.FillWidth(10.f)
+						.Padding(5.f)
+						[
+							ConstructDeselectAllButton()
+						]
 				]
 		];
 }
@@ -66,6 +93,9 @@ TSharedRef<SListView<TSharedPtr<FAssetData>>> SAdvanceDeletionTab::ConstructAsse
 
 void SAdvanceDeletionTab::RefreshAssetListView()
 {
+	AssetsDataToDeleteArray.Empty();
+	CheckBoxesArray.Empty();
+
 	if (ConstructedAssetListView.IsValid())
 	{
 		ConstructedAssetListView->RebuildList();
@@ -137,6 +167,7 @@ TSharedRef<SCheckBox> SAdvanceDeletionTab::ConstructCheckBox(const TSharedPtr<FA
 		.OnCheckStateChanged(this, &SAdvanceDeletionTab::OnCheckBoxStateChanged, AssetDataToDisplay)
 		.Visibility(EVisibility::Visible);
 
+	CheckBoxesArray.Add(ConstructedCheckBox);
 	return ConstructedCheckBox;
 }
 
@@ -145,10 +176,13 @@ void SAdvanceDeletionTab::OnCheckBoxStateChanged(ECheckBoxState NewState, TShare
 	switch (NewState)
 	{
 	case ECheckBoxState::Unchecked:
-		DebugHeader::Print(AssetData->AssetName.ToString() + TEXT(" is unchecked"), FColor::Red);
+		if (AssetsDataToDeleteArray.Contains(AssetData))
+		{
+			AssetsDataToDeleteArray.Remove(AssetData);
+		}
 		break;
 	case ECheckBoxState::Checked:
-		DebugHeader::Print(AssetData->AssetName.ToString() + TEXT(" is checked"), FColor::Green);
+		AssetsDataToDeleteArray.AddUnique(AssetData);
 		break;
 	case ECheckBoxState::Undetermined:
 		break;
@@ -193,4 +227,118 @@ FReply SAdvanceDeletionTab::OnDeleteButtonClicked(TSharedPtr<FAssetData> Clicked
 	}
 
 	return FReply::Handled();
+}
+
+TSharedRef<SButton> SAdvanceDeletionTab::ConstructDeleteAllButton()
+{
+	TSharedRef<SButton> DeleteAllButton = SNew(SButton)
+		.ContentPadding(FMargin(5.f))
+		.OnClicked(this, &SAdvanceDeletionTab::OnDeleteAllButtonClicked);
+
+	DeleteAllButton->SetContent(ConstructTextForTabButtons(TEXT("Delete All")));
+	return DeleteAllButton;
+}
+
+FReply SAdvanceDeletionTab::OnDeleteAllButtonClicked()
+{
+	if (AssetsDataToDeleteArray.Num() == 0)
+	{
+		DebugHeader::ShowMsgDialog(EAppMsgType::Ok, TEXT("No asset currently selected"));
+		return FReply::Handled();
+	}
+
+	TArray<FAssetData> AssetDataToDelete;
+
+	for (const TSharedPtr<FAssetData>& Data : AssetsDataToDeleteArray)
+	{
+		AssetDataToDelete.Add(*Data.Get());
+	}
+
+	FCoreManagerModule& CoreManagerModule = FModuleManager::LoadModuleChecked<FCoreManagerModule>(TEXT("CoreManager"));
+	const bool bAssetsDeleted = CoreManagerModule.DeleteMultipleAssetsForAssetList(AssetDataToDelete);
+
+	if (bAssetsDeleted)
+	{
+		for (const TSharedPtr<FAssetData>& DeletedData : AssetsDataToDeleteArray)
+		{
+			if (StoredAssetsData.Contains(DeletedData))
+			{
+				StoredAssetsData.Remove(DeletedData);
+			}
+		}
+
+		RefreshAssetListView();
+	}
+
+	//Pass data to our module for deletion
+	return FReply::Handled();
+}
+
+TSharedRef<SButton> SAdvanceDeletionTab::ConstructSelectAllButton()
+{
+	TSharedRef<SButton> SelectAllButton = SNew(SButton)
+		.ContentPadding(FMargin(5.f))
+		.OnClicked(this, &SAdvanceDeletionTab::OnSelectAllButtonClicked);
+
+	SelectAllButton->SetContent(ConstructTextForTabButtons(TEXT("Select All")));
+	return SelectAllButton;
+}
+
+FReply SAdvanceDeletionTab::OnSelectAllButtonClicked()
+{
+	if (CheckBoxesArray.Num() == 0)
+	{
+		return FReply::Handled();
+	}
+
+	for (const TSharedRef<SCheckBox>& CheckBox : CheckBoxesArray)
+	{
+		if (!CheckBox->IsChecked())
+		{
+			CheckBox->ToggleCheckedState();
+		}
+	}
+
+	return FReply::Handled();
+}
+
+TSharedRef<SButton> SAdvanceDeletionTab::ConstructDeselectAllButton()
+{
+	TSharedRef<SButton> DeselectAllButton = SNew(SButton)
+		.ContentPadding(FMargin(5.f))
+		.OnClicked(this, &SAdvanceDeletionTab::OnDeselectAllButtonClicked);
+
+	DeselectAllButton->SetContent(ConstructTextForTabButtons(TEXT("Deselect All")));
+	return DeselectAllButton;
+}
+
+FReply SAdvanceDeletionTab::OnDeselectAllButtonClicked()
+{
+	if (CheckBoxesArray.Num() == 0)
+	{
+		return FReply::Handled();
+	}
+
+	for (const TSharedRef<SCheckBox>& CheckBox : CheckBoxesArray)
+	{
+		if (CheckBox->IsChecked())
+		{
+			CheckBox->ToggleCheckedState();
+		}
+	}
+
+	return FReply::Handled();
+}
+
+TSharedRef<STextBlock> SAdvanceDeletionTab::ConstructTextForTabButtons(const FString& TextContent)
+{
+	FSlateFontInfo ButtonTextFont = GetEmboseedTextFont();
+	ButtonTextFont.Size = 15;
+
+	TSharedRef<STextBlock> ConstructedTextBlock = SNew(STextBlock)
+		.Text(FText::FromString(TextContent))
+		.Font(ButtonTextFont)
+		.Justification(ETextJustify::Center);
+
+	return ConstructedTextBlock;
 }
