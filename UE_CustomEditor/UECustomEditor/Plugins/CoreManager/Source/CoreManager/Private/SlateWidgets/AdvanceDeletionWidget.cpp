@@ -3,6 +3,10 @@
 #include "DebugHeader.h"
 #include "CoreManager.h"
 
+#define ListAll TEXT("List All Available Assets")
+#define ListUnused TEXT("List Unused Assets")
+#define ListSameName TEXT("List Assets With Same Name")
+
 void SAdvanceDeletionTab::Construct(const FArguments& InArgs)
 {
 	bCanSupportFocus = true;
@@ -10,6 +14,11 @@ void SAdvanceDeletionTab::Construct(const FArguments& InArgs)
 	StoredAssetsData = InArgs._AssetsDataToStore;
 	CheckBoxesArray.Empty();
 	AssetsDataToDeleteArray.Empty();
+	DisplayedAssetsData = StoredAssetsData;
+
+	ComboBoxSourceItems.Add(MakeShared<FString>(ListAll));
+	ComboBoxSourceItems.Add(MakeShared<FString>(ListUnused));
+	ComboBoxSourceItems.Add(MakeShared<FString>(ListSameName));
 
 	FSlateFontInfo TitleTextFont = FCoreStyle::Get().GetFontStyle(FName("EmbossedText"));
 	TitleTextFont.Size = 30;
@@ -34,6 +43,12 @@ void SAdvanceDeletionTab::Construct(const FArguments& InArgs)
 				.AutoHeight()
 				[
 					SNew(SHorizontalBox)
+
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						[
+							ConstructComboBox()
+						]
 				]
 
 				//Third slot for the asset list
@@ -85,7 +100,7 @@ TSharedRef<SListView<TSharedPtr<FAssetData>>> SAdvanceDeletionTab::ConstructAsse
 {
 	ConstructedAssetListView = SNew(SListView<TSharedPtr<FAssetData>>)
 		.ItemHeight(24.f)
-		.ListItemsSource(&StoredAssetsData)
+		.ListItemsSource(&DisplayedAssetsData)
 		.OnGenerateRow(this, &SAdvanceDeletionTab::OnGenerateRowForList);
 
 	return ConstructedAssetListView.ToSharedRef();
@@ -265,6 +280,11 @@ FReply SAdvanceDeletionTab::OnDeleteAllButtonClicked()
 			{
 				StoredAssetsData.Remove(DeletedData);
 			}
+
+			if (DisplayedAssetsData.Contains(DeletedData))
+			{
+				DisplayedAssetsData.Remove(DeletedData);
+			}
 		}
 
 		RefreshAssetListView();
@@ -341,4 +361,56 @@ TSharedRef<STextBlock> SAdvanceDeletionTab::ConstructTextForTabButtons(const FSt
 		.Justification(ETextJustify::Center);
 
 	return ConstructedTextBlock;
+}
+
+TSharedRef<SComboBox<TSharedPtr<FString>>> SAdvanceDeletionTab::ConstructComboBox()
+{
+	TSharedRef<SComboBox<TSharedPtr<FString>>> ConstructedComboBox =
+		SNew(SComboBox<TSharedPtr<FString>>)
+		.OptionsSource(&ComboBoxSourceItems)
+		.OnGenerateWidget(this, &SAdvanceDeletionTab::OnGenerateComboContent)
+		.OnSelectionChanged(this, &SAdvanceDeletionTab::OnComboSelectionChanged)
+		[
+			SAssignNew(ComboDiplayTextBlock, STextBlock)
+				.Text(FText::FromString(TEXT("List Assets Option")))
+		];
+
+	return ConstructedComboBox;
+}
+
+TSharedRef<SWidget> SAdvanceDeletionTab::OnGenerateComboContent(TSharedPtr<FString> SourceItem)
+{
+	TSharedRef <STextBlock> ContructedComboText = SNew(STextBlock)
+		.Text(FText::FromString(*SourceItem.Get()));
+
+	return ContructedComboText;
+}
+
+void SAdvanceDeletionTab::OnComboSelectionChanged(TSharedPtr<FString> SelectedOption, ESelectInfo::Type InSelectInfo)
+{
+	DebugHeader::Print(*SelectedOption.Get(), FColor::Cyan);
+
+	ComboDiplayTextBlock->SetText(FText::FromString(*SelectedOption.Get()));
+
+	FCoreManagerModule& CoreManagerModule = FModuleManager::LoadModuleChecked<FCoreManagerModule>(TEXT("CoreManager"));
+
+	//Pass data for our module to filter based on the selected option
+	if (*SelectedOption.Get() == ListAll)
+	{
+		//List all stored asset data
+		DisplayedAssetsData = StoredAssetsData;
+		RefreshAssetListView();
+	}
+	else if (*SelectedOption.Get() == ListUnused)
+	{
+		//List all unused assets
+		CoreManagerModule.ListUnusedAssetsForAssetList(StoredAssetsData, DisplayedAssetsData);
+		RefreshAssetListView();
+	}
+	else if (*SelectedOption.Get() == ListSameName)
+	{
+		//List out all assets with same name
+		CoreManagerModule.ListSameNameAssetsForAssetList(StoredAssetsData, DisplayedAssetsData);
+		RefreshAssetListView();
+	}
 }

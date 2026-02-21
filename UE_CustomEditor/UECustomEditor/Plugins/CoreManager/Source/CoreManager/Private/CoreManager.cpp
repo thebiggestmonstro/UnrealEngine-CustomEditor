@@ -7,6 +7,8 @@
 #include "ObjectTools.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
+#include "ContentBrowserModule.h"
+#include "IContentBrowserSingleton.h"
 #include "LevelEditorSubsystem.h"
 #include "SlateWidgets/AdvanceDeletionWidget.h"
 
@@ -212,6 +214,7 @@ void FCoreManagerModule::OnDeleteEmptyFoldersButtonClicked()
 
 void FCoreManagerModule::OnAdvanceDeletionButtonClicked()
 {
+	FixUpRedirectors();
 	FGlobalTabmanager::Get()->TryInvokeTab(FName("AdvanceDeletion"));
 }
 
@@ -246,6 +249,46 @@ void FCoreManagerModule::FixUpRedirectors(const FString& InSelectedPath)
 	TArray<FAssetData> OutRedirectors;
 	AssetRegistryModule.Get().GetAssets(Filter, OutRedirectors);
 
+	for (const FAssetData& RedirectorData : OutRedirectors)
+	{
+		if (UObjectRedirector* RedirectorToFix = Cast<UObjectRedirector>(RedirectorData.GetAsset()))
+		{
+			RedirectorsToFixArray.Add(RedirectorToFix);
+		}
+	}
+
+	if (RedirectorsToFixArray.Num() > 0)
+	{
+		FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
+		AssetToolsModule.Get().FixupReferencers(RedirectorsToFixArray);
+	}
+}
+
+void FCoreManagerModule::FixUpRedirectors()
+{
+	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
+	TArray<FString> SelectedPaths;
+	ContentBrowserModule.Get().SetSelectedPaths(SelectedPaths);
+
+	if (SelectedPaths.Num() == 0)
+	{
+		return;
+	}
+
+	FARFilter Filter;
+	Filter.bRecursivePaths = true;
+	Filter.ClassPaths.Add(UObjectRedirector::StaticClass()->GetClassPathName());
+
+	for (const FString& Path : SelectedPaths)
+	{
+		Filter.PackagePaths.Add(*Path);
+	}
+
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+	TArray<FAssetData> OutRedirectors;
+	AssetRegistryModule.Get().GetAssets(Filter, OutRedirectors);
+
+	TArray<UObjectRedirector*> RedirectorsToFixArray;
 	for (const FAssetData& RedirectorData : OutRedirectors)
 	{
 		if (UObjectRedirector* RedirectorToFix = Cast<UObjectRedirector>(RedirectorData.GetAsset()))
@@ -347,6 +390,54 @@ bool FCoreManagerModule::DeleteMultipleAssetsForAssetList(const TArray<FAssetDat
 	}
 
 	return false;
+}
+
+void FCoreManagerModule::ListUnusedAssetsForAssetList(const TArray<TSharedPtr<FAssetData>>& AssetsDataToFilter, TArray<TSharedPtr<FAssetData>>& OutUnusedAssetsData)
+{
+	SaveWorldIfDirty();
+
+	OutUnusedAssetsData.Empty();
+
+	for (const TSharedPtr<FAssetData>& DataSharedPtr : AssetsDataToFilter)
+	{
+		TArray<FString> AssetReferencers = UEditorAssetLibrary::FindPackageReferencersForAsset(DataSharedPtr->ObjectPath.ToString());
+		if (AssetReferencers.Num() == 0)
+		{
+			OutUnusedAssetsData.Add(DataSharedPtr);
+		}
+	}
+}
+
+void FCoreManagerModule::ListSameNameAssetsForAssetList(const TArray<TSharedPtr<FAssetData>>& AssetsDataToFilter, TArray<TSharedPtr<FAssetData>>& OutSameNameAssetsData)
+{
+	OutSameNameAssetsData.Empty();
+
+	//Multimap for supporting finding assets with same name
+	TMultiMap<FString, TSharedPtr<FAssetData>> AssetsInfoMultiMap;
+
+	for (const TSharedPtr<FAssetData>& DataSharedPtr : AssetsDataToFilter)
+	{
+		AssetsInfoMultiMap.Emplace(DataSharedPtr->AssetName.ToString(), DataSharedPtr);
+	}
+
+	for (const TSharedPtr<FAssetData>& DataSharedPtr : AssetsDataToFilter)
+	{
+		TArray< TSharedPtr <FAssetData> > OutAssetsData;
+		AssetsInfoMultiMap.MultiFind(DataSharedPtr->AssetName.ToString(), OutAssetsData);
+
+		if (OutAssetsData.Num() <= 1)
+		{
+			continue;
+		}
+
+		for (const TSharedPtr<FAssetData>& SameNameData : OutAssetsData)
+		{
+			if (SameNameData.IsValid())
+			{
+				OutSameNameAssetsData.AddUnique(SameNameData);
+			}
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

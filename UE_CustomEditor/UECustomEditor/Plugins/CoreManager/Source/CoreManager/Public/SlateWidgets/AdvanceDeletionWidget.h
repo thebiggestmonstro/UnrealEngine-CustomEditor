@@ -17,10 +17,13 @@ private:
 	TArray<TSharedPtr<FAssetData>> StoredAssetsData;
 	TArray<TSharedPtr<FAssetData>> AssetsDataToDeleteArray;
 	TArray<TSharedRef<SCheckBox>> CheckBoxesArray;
+	TArray<TSharedPtr<FAssetData>> DisplayedAssetsData;
 
 	TSharedRef<SListView<TSharedPtr<FAssetData>>> ConstructAssetListView();
 	TSharedPtr<SListView<TSharedPtr<FAssetData>>> ConstructedAssetListView;
 	void RefreshAssetListView();
+
+	// RowWidgetForAssetListView
 	TSharedRef<ITableRow> OnGenerateRowForList(TSharedPtr<FAssetData> AssetDataToDisplay, const TSharedRef<STableViewBase>& OwnerTable);
 	TSharedRef<SCheckBox> ConstructCheckBox(const TSharedPtr<FAssetData>& AssetDataToDisplay);
 	void OnCheckBoxStateChanged(ECheckBoxState NewState, TSharedPtr<FAssetData> AssetData);
@@ -28,6 +31,7 @@ private:
 	TSharedRef<SButton> ConstructButtonForRowWidget(const TSharedPtr<FAssetData>& AssetDataToDisplay);
 	FReply OnDeleteButtonClicked(TSharedPtr<FAssetData> ClickedAssetData);
 
+	// TabButtons
 	TSharedRef<SButton> ConstructDeleteAllButton();
 	TSharedRef<SButton> ConstructSelectAllButton();
 	TSharedRef<SButton> ConstructDeselectAllButton();
@@ -36,6 +40,14 @@ private:
 	FReply OnSelectAllButtonClicked();
 	FReply OnDeselectAllButtonClicked();
 
+	// ComboBoxForListingCondition
+	TSharedRef<SComboBox<TSharedPtr<FString>>> ConstructComboBox();
+	TArray<TSharedPtr<FString>> ComboBoxSourceItems;
+	TSharedRef<SWidget> OnGenerateComboContent(TSharedPtr<FString> SourceItem);
+	void OnComboSelectionChanged(TSharedPtr<FString> SelectedOption, ESelectInfo::Type InSelectInfo);
+	TSharedPtr<STextBlock> ComboDiplayTextBlock;
+
+	// etc
 	TSharedRef<STextBlock> ConstructTextForTabButtons(const FString& TextContent);
 	FSlateFontInfo GetEmboseedTextFont() const { return FCoreStyle::Get().GetFontStyle(FName("EmbossedText")); }
 };
