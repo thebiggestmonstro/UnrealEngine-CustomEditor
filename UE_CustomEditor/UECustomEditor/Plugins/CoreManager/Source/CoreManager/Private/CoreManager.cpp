@@ -22,7 +22,7 @@ void FCoreManagerModule::StartupModule()
 
 void FCoreManagerModule::ShutdownModule()
 {
-	
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FName("AdvanceDeletion"));
 }
 
 void FCoreManagerModule::InitContentBrowserMenuExtention()
@@ -338,6 +338,7 @@ TSharedRef<SDockTab> FCoreManagerModule::OnSpawnAdvanceDeltionTab(const FSpawnTa
 		[
 			SNew(SAdvanceDeletionTab)
 				.AssetsDataToStore(GetAllAssetDataUnderSelectedFolder())
+				.CurrentSelectedFolder(FolderPathsSelected[0])
 		];
 }
 
@@ -438,6 +439,13 @@ void FCoreManagerModule::ListSameNameAssetsForAssetList(const TArray<TSharedPtr<
 			}
 		}
 	}
+}
+
+void FCoreManagerModule::SyncContentBrowserToClickedAssetForAssetList(const FString& AssetPathToSync)
+{
+	TArray<FString> AssetsPathToSync;
+	AssetsPathToSync.Add(AssetPathToSync);
+	UEditorAssetLibrary::SyncBrowserToObjects(AssetsPathToSync);
 }
 
 #undef LOCTEXT_NAMESPACE
