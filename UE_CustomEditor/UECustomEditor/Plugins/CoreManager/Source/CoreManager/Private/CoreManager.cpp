@@ -11,11 +11,13 @@
 #include "IContentBrowserSingleton.h"
 #include "LevelEditorSubsystem.h"
 #include "SlateWidgets/AdvanceDeletionWidget.h"
+#include "CustomStyle/CoreManagerStyle.h"
 
 #define LOCTEXT_NAMESPACE "FCoreManagerModule"
 
 void FCoreManagerModule::StartupModule()
 {
+	FCoreManagerStyle::InitializeIcons();
 	InitContentBrowserMenuExtention();
 	RegisterAdvanceDeletionTab();
 }
@@ -23,6 +25,7 @@ void FCoreManagerModule::StartupModule()
 void FCoreManagerModule::ShutdownModule()
 {
 	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FName("AdvanceDeletion"));
+	FCoreManagerStyle::ShutDown();
 }
 
 void FCoreManagerModule::InitContentBrowserMenuExtention()
@@ -63,7 +66,7 @@ void FCoreManagerModule::AddContentBrowserMenuEntry(FMenuBuilder& MenuBuilder)
 	(
 		FText::FromString(TEXT("Delete Unused Assets")),							//Title text for menu entry
 		FText::FromString(TEXT("Safely delete all unused assets under folder")),	//Tooltip text
-		FSlateIcon(),																//Custom icon
+		FSlateIcon(FCoreManagerStyle::GetStyleSetName(), "ContentBrowser.DeleteUnusedAssets"),	//Custom icon
 		FExecuteAction::CreateRaw(this, &FCoreManagerModule::OnDeleteUnsuedAssetButtonClicked) //The actual function to excute
 	);
 
@@ -71,7 +74,7 @@ void FCoreManagerModule::AddContentBrowserMenuEntry(FMenuBuilder& MenuBuilder)
 	(
 		FText::FromString(TEXT("Delete Empty Folders")), //Title text for menu entry
 		FText::FromString(TEXT("Safely delete all empty folders")), //Tooltip text
-		FSlateIcon(),	//Custom icon
+		FSlateIcon(FCoreManagerStyle::GetStyleSetName(), "ContentBrowser.DeleteEmptyFolders"),	//Custom icon
 		FExecuteAction::CreateRaw(this, &FCoreManagerModule::OnDeleteEmptyFoldersButtonClicked) //The actual function to excute
 	);
 
@@ -79,7 +82,7 @@ void FCoreManagerModule::AddContentBrowserMenuEntry(FMenuBuilder& MenuBuilder)
 	(
 		FText::FromString(TEXT("Advance Deletion")), //Title text for menu entry
 		FText::FromString(TEXT("List assets by specific condition in a tab for deleting")), //Tooltip text
-		FSlateIcon(),	//Custom icon
+		FSlateIcon(FCoreManagerStyle::GetStyleSetName(), "ContentBrowser.AdvanceDeletion"),	//Custom icon
 		FExecuteAction::CreateRaw(this, &FCoreManagerModule::OnAdvanceDeletionButtonClicked) //The actual function to excute
 	);
 }
@@ -328,7 +331,9 @@ void FCoreManagerModule::SaveWorldIfDirty()
 void FCoreManagerModule::RegisterAdvanceDeletionTab()
 {
 	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FName("AdvanceDeletion")
-		,FOnSpawnTab::CreateRaw(this, &FCoreManagerModule::OnSpawnAdvanceDeltionTab)).SetDisplayName(FText::FromString(TEXT("Advance Deletion"))
+		,FOnSpawnTab::CreateRaw(this, &FCoreManagerModule::OnSpawnAdvanceDeltionTab))
+		.SetDisplayName(FText::FromString(TEXT("Advance Deletion")))
+		.SetIcon(FSlateIcon(FCoreManagerStyle::GetStyleSetName(), "ContentBrowser.AdvanceDeletion")
 	);
 }
 

@@ -37,6 +37,7 @@ public class CoreManager : ModuleRules
                 "Slate",
 				"SlateCore",
                 "InputCore",
+				"Projects",
 				// ... add other public dependencies that you statically link with here ...
 			}
             );
