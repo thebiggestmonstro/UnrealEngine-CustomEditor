@@ -6,6 +6,7 @@
 #include "EditorAssetLibrary.h"
 #include "AssetToolsModule.h"
 #include "Factories/MaterialFactoryNew.h"
+#include "Materials/MaterialExpressionTextureSample.h"
 
 void UQuickMaterialCreationWidget::CreateMaterialFromSelectedTextures()
 {
@@ -21,6 +22,7 @@ void UQuickMaterialCreationWidget::CreateMaterialFromSelectedTextures()
 	TArray<FAssetData> SelectedAssetsData = UEditorUtilityLibrary::GetSelectedAssetData();
 	TArray<UTexture2D*> SelectedTexturesArray;
 	FString SelectedTextureFolderPath;
+	uint32 PinsConnectedCounter = 0;
 
 	if (!ProcessSelectedData(SelectedAssetsData, SelectedTexturesArray, SelectedTextureFolderPath))
 	{
@@ -38,6 +40,21 @@ void UQuickMaterialCreationWidget::CreateMaterialFromSelectedTextures()
 	{
 		DebugHeader::ShowMsgDialog(EAppMsgType::Ok, TEXT("Failed to create material"));
 		return;
+	}
+
+	for (UTexture2D* SelectedTexture : SelectedTexturesArray)
+	{
+		if (!SelectedTexture)
+		{
+			continue;
+		}
+
+		Default_CreateMaterialNodes(CreatedMaterial, SelectedTexture, PinsConnectedCounter);
+	}
+
+	if (PinsConnectedCounter > 0)
+	{
+		DebugHeader::ShowNotifyInfo(TEXT("Successfully connected ") + FString::FromInt(PinsConnectedCounter) + (TEXT(" pins")));
 	}
 }
 
@@ -113,4 +130,80 @@ UMaterial* UQuickMaterialCreationWidget::CreateMaterialAsset(const FString& Name
 	UObject* CreatedObject = AssetToolsModule.Get().CreateAsset(NameOfTheMaterial, PathToPutMaterial, UMaterial::StaticClass(), MaterialFactory);
 
 	return Cast<UMaterial>(CreatedObject);
+}
+
+void UQuickMaterialCreationWidget::Default_CreateMaterialNodes(UMaterial* CreatedMaterial, UTexture2D* SelectedTexture, uint32& PinsConnectedCounter)
+{
+	UMaterialExpressionTextureSample* TextureSampleNode = NewObject<UMaterialExpressionTextureSample>(CreatedMaterial);
+
+	if (!TextureSampleNode)
+	{
+		return;
+	}
+
+	if (!CreatedMaterial->HasBaseColorConnected())
+	{
+		if (TryConnectBaseColor(TextureSampleNode, SelectedTexture, CreatedMaterial))
+		{
+			PinsConnectedCounter++;
+			return;
+		}
+	}
+
+	if (!CreatedMaterial->HasMetallicConnected())
+	{
+		if (TryConnectMetalic(TextureSampleNode, SelectedTexture, CreatedMaterial))
+		{
+			PinsConnectedCounter++;
+			return;
+		}
+	}
+}
+
+bool UQuickMaterialCreationWidget::TryConnectBaseColor(UMaterialExpressionTextureSample* TextureSampleNode, UTexture2D* SelectedTexture, UMaterial* CreatedMaterial)
+{
+	for (const FString& BaseColorName : BaseColorArray)
+	{
+		if (SelectedTexture->GetName().Contains(BaseColorName))
+		{
+			TextureSampleNode->Texture = SelectedTexture;
+
+			CreatedMaterial->GetExpressionCollection().AddExpression(TextureSampleNode);
+			CreatedMaterial->GetExpressionInputForProperty(MP_BaseColor)->Connect(0, TextureSampleNode);
+			CreatedMaterial->PostEditChange();
+
+			TextureSampleNode->MaterialExpressionEditorX -= 600;
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool UQuickMaterialCreationWidget::TryConnectMetalic(UMaterialExpressionTextureSample* TextureSampleNode, UTexture2D* SelectedTexture, UMaterial* CreatedMaterial)
+{
+	for (const FString& MetalicName : MetallicArray)
+	{
+		if (SelectedTexture->GetName().Contains(MetalicName))
+		{
+			SelectedTexture->CompressionSettings = TextureCompressionSettings::TC_Default;
+			SelectedTexture->SRGB = false;
+			SelectedTexture->PostEditChange();
+
+			TextureSampleNode->Texture = SelectedTexture;
+			TextureSampleNode->SamplerType = EMaterialSamplerType::SAMPLERTYPE_LinearColor;
+
+			CreatedMaterial->GetExpressionCollection().AddExpression(TextureSampleNode);
+			CreatedMaterial->GetExpressionInputForProperty(MP_Metallic)->Expression = TextureSampleNode;
+			CreatedMaterial->PostEditChange();
+
+			TextureSampleNode->MaterialExpressionEditorX -= 600;
+			TextureSampleNode->MaterialExpressionEditorY += 240;
+
+			return true;
+		}
+	}
+
+	return false;
 }
