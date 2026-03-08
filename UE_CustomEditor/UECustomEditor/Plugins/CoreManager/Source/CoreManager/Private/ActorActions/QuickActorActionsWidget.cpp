@@ -30,9 +30,9 @@ void UQuickActorActionsWidget::SelectAllActorsWithSimilarName()
 	FString SelectedActorName = SelectedActors[0]->GetActorLabel();
 	const FString NameToSearch = SelectedActorName.LeftChop(4);
 
-	TArray<AActor*> AllLeveActors = EditorActorSubsystem->GetAllLevelActors();
+	TArray<AActor*> AllLevelActors = EditorActorSubsystem->GetAllLevelActors();
 
-	for (AActor* ActorInLevel : AllLeveActors)
+	for (AActor* ActorInLevel : AllLevelActors)
 	{
 		if (!ActorInLevel)
 		{
@@ -53,6 +53,83 @@ void UQuickActorActionsWidget::SelectAllActorsWithSimilarName()
 	else
 	{
 		DebugHeader::ShowNotifyInfo(TEXT("No actor with similar name found"));
+	}
+}
+
+void UQuickActorActionsWidget::SelectActorsWithName(const FString& ActorName)
+{
+	if (!GetEditorActorSubsystem())
+	{
+		return;
+	}
+
+	if (ActorName.IsEmpty())
+	{
+		DebugHeader::ShowNotifyInfo(TEXT("Enter Actor Name To Select"));
+		return;
+	}
+
+	TArray<AActor*> AllLevelActors = EditorActorSubsystem->GetAllLevelActors();
+	uint32 SelectionCounter = 0;
+
+	for (AActor* Actor : AllLevelActors)
+	{
+		if (Actor && Actor->GetActorLabel().Contains(ActorName, SearchCase))
+		{
+			if (!Actor->IsSelected())
+			{
+				EditorActorSubsystem->SetActorSelectionState(Actor, true);
+				SelectionCounter++;
+			}
+		}
+	}
+
+	if (SelectionCounter == 0)
+	{
+		DebugHeader::ShowNotifyInfo(TEXT("No actor with similar name found"));
+		return;
+	}
+
+	if (SelectionCounter > 0)
+	{
+		DebugHeader::ShowNotifyInfo(TEXT("Successfully select ") + FString::FromInt(SelectionCounter)+ TEXT(" ") + ActorName);
+	}
+}
+
+void UQuickActorActionsWidget::DeselectActorsWithName(const FString& ActorName)
+{
+	if (!GetEditorActorSubsystem())
+	{
+		return;
+	}
+
+	if (ActorName.IsEmpty())
+	{
+		DebugHeader::ShowNotifyInfo(TEXT("Enter Actor Name To Deselect"));
+		return;
+	}
+
+	TArray<AActor*> SelectedActors = EditorActorSubsystem->GetSelectedLevelActors();
+	uint32 DeselectionCounter = 0;
+
+	for (AActor* Actor : SelectedActors)
+	{
+		if (Actor && Actor->GetActorLabel().Contains(ActorName, SearchCase))
+		{
+			EditorActorSubsystem->SetActorSelectionState(Actor, false);
+			DeselectionCounter++;
+		}
+	}
+
+	if (DeselectionCounter == 0)
+	{
+		DebugHeader::ShowNotifyInfo(TEXT("No actor with similar name found"));
+		return;
+	}
+
+	if (DeselectionCounter > 0)
+	{
+		DebugHeader::ShowNotifyInfo(TEXT("Successfully deselect ") + FString::FromInt(DeselectionCounter) + TEXT(" ") + ActorName);
 	}
 }
 
@@ -126,12 +203,14 @@ void UQuickActorActionsWidget::DuplicateActors()
 
 void UQuickActorActionsWidget::RandomizeActorTransform()
 {
-	const bool ConditionNotSet =
+	const bool bConditionNotSet =
 		!RandomActorRotation.bRandomizeRotYaw &&
 		!RandomActorRotation.bRandomizeRotPitch &&
-		!RandomActorRotation.bRandomizeRotRoll;
+		!RandomActorRotation.bRandomizeRotRoll &&
+		!bRandomizeScale &&
+		!bRandomizeOffset;
 
-	if (ConditionNotSet)
+	if (bConditionNotSet)
 	{
 		DebugHeader::ShowNotifyInfo(TEXT("No variation condition specified"));
 		return;
@@ -176,15 +255,18 @@ void UQuickActorActionsWidget::RandomizeActorTransform()
 			SelectedActor->AddActorWorldRotation(FRotator(0.f, 0.f, RandomRotRollValue));
 		}
 
-		const bool bShouldIncreaseCounter =
-			RandomActorRotation.bRandomizeRotYaw ||
-			RandomActorRotation.bRandomizeRotPitch ||
-			RandomActorRotation.bRandomizeRotRoll;
-
-		if (bShouldIncreaseCounter)
+		if (bRandomizeScale)
 		{
-			Counter++;
+			SelectedActor->SetActorScale3D(FVector(FMath::RandRange(ScaleMin, ScaleMax)));
 		}
+
+		if (bRandomizeOffset)
+		{
+			const float RandomOffsetValue = FMath::RandRange(OffsetMin, OffsetMax);
+			SelectedActor->AddActorWorldOffset(FVector(RandomOffsetValue, RandomOffsetValue, 0.f));
+		}
+
+		Counter++;
 	}
 
 	if (Counter > 0)
