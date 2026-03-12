@@ -13,6 +13,7 @@
 #include "CustomStyle/CoreManagerStyle.h"
 #include "LevelEditor.h"
 #include "Engine/Selection.h"
+#include "Subsystems/EditorActorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "FCoreManagerModule"
 
@@ -410,7 +411,7 @@ void FCoreManagerModule::AddLevelEditorMenuEntry(FMenuBuilder& MenuBuilder)
 	(
 		FText::FromString(TEXT("Lock Actor Selection")),
 		FText::FromString(TEXT("Prevent actor from being selected")),
-		FSlateIcon(),
+		FSlateIcon(FCoreManagerStyle::GetStyleSetName(), "LevelEditor.LockSelection"),
 		FExecuteAction::CreateRaw(this, &FCoreManagerModule::OnLockActorSelectionButtonClicked)
 	);
 
@@ -418,19 +419,85 @@ void FCoreManagerModule::AddLevelEditorMenuEntry(FMenuBuilder& MenuBuilder)
 	(
 		FText::FromString(TEXT("Unlock all actor Selection")),
 		FText::FromString(TEXT("Remove the selection constraint on all actor")),
-		FSlateIcon(),
+		FSlateIcon(FCoreManagerStyle::GetStyleSetName(), "LevelEditor.UnlockSelection"),
 		FExecuteAction::CreateRaw(this, &FCoreManagerModule::OnUnlockActorSelectionButtonClicked)
 	);
 }
 
 void FCoreManagerModule::OnLockActorSelectionButtonClicked()
 {
-	DebugHeader::Print(TEXT("Locked"), FColor::Cyan);
+	if (!GetEditorActorSubsystem())
+	{
+		return;
+	}
+
+	TArray<AActor*> SelectedActors = WeakEditorActorSubsystem->GetSelectedLevelActors();
+
+	if (SelectedActors.Num() == 0)
+	{
+		DebugHeader::ShowNotifyInfo(TEXT("No actor selected"));
+		return;
+	}
+
+	FString CurrentLockedActorNames = TEXT("Locked selection for:");
+
+	for (AActor* SelectedActor : SelectedActors)
+	{
+		if (!SelectedActor)
+		{
+			continue;
+		}
+
+		LockActorSelection(SelectedActor);
+
+		WeakEditorActorSubsystem->SetActorSelectionState(SelectedActor, false);
+
+		CurrentLockedActorNames.Append(TEXT("\n"));
+		CurrentLockedActorNames.Append(SelectedActor->GetActorLabel());
+	}
+
+	DebugHeader::ShowNotifyInfo(CurrentLockedActorNames);
 }
 
 void FCoreManagerModule::OnUnlockActorSelectionButtonClicked()
 {
-	DebugHeader::Print(TEXT("Unlocked"), FColor::Red);
+	if (!GetEditorActorSubsystem())
+	{
+		return;
+	}
+
+	TArray<AActor*> AllActorsInLevel = WeakEditorActorSubsystem->GetAllLevelActors();
+	TArray<AActor*> AllLockedActors;
+
+	for (AActor* ActorInLevel : AllActorsInLevel)
+	{
+		if (!ActorInLevel)
+		{
+			continue;
+		}
+
+		if (CheckIsActorSelectionLocked(ActorInLevel))
+		{
+			AllLockedActors.Add(ActorInLevel);
+		}
+	}
+
+	if (AllLockedActors.Num() == 0)
+	{
+		DebugHeader::ShowNotifyInfo(TEXT("No selection locked actor currently"));
+	}
+
+	FString UnlockedActorNames = TEXT("Lifted selection constraint for:");
+
+	for (AActor* LockedActor : AllLockedActors)
+	{
+		UnlockActorSelection(LockedActor);
+
+		UnlockedActorNames.Append(TEXT("\n"));
+		UnlockedActorNames.Append(LockedActor->GetActorLabel());
+	}
+
+	DebugHeader::ShowNotifyInfo(UnlockedActorNames);
 }
 
 void FCoreManagerModule::InitCustomSelectionEvent()
@@ -441,10 +508,65 @@ void FCoreManagerModule::InitCustomSelectionEvent()
 
 void FCoreManagerModule::OnActorSelected(UObject* SelectedObject)
 {
+	if (!GetEditorActorSubsystem())
+	{
+		return;
+	}
+
 	if (AActor* SelectedActor = Cast<AActor>(SelectedObject))
 	{
-		DebugHeader::Print(SelectedActor->GetActorLabel(), FColor::Cyan);
+		if (CheckIsActorSelectionLocked(SelectedActor))
+		{
+			//Deselect actor right away
+			WeakEditorActorSubsystem->SetActorSelectionState(SelectedActor, false);
+		}
 	}
+}
+
+void FCoreManagerModule::LockActorSelection(AActor* ActorToProcess)
+{
+	if (!ActorToProcess)
+	{
+		return;
+	}
+
+	if (!ActorToProcess->ActorHasTag(FName("Locked")))
+	{
+		ActorToProcess->Tags.Add(FName("Locked"));
+	}
+}
+
+void FCoreManagerModule::UnlockActorSelection(AActor* ActorToProcess)
+{
+	if (!ActorToProcess)
+	{
+		return;
+	}
+
+	if (ActorToProcess->ActorHasTag(FName("Locked")))
+	{
+		ActorToProcess->Tags.Remove(FName("Locked"));
+	}
+}
+
+bool FCoreManagerModule::CheckIsActorSelectionLocked(AActor* ActorToProcess)
+{
+	if (!ActorToProcess)
+	{
+		return false;
+	}
+
+	return ActorToProcess->ActorHasTag(FName("Locked"));
+}
+
+bool FCoreManagerModule::GetEditorActorSubsystem()
+{
+	if (!WeakEditorActorSubsystem.IsValid())
+	{
+		WeakEditorActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
+	}
+
+	return WeakEditorActorSubsystem.IsValid();
 }
 
 bool FCoreManagerModule::DeleteSingleAssetForAssetList(const FAssetData& AssetDataToDelete)
