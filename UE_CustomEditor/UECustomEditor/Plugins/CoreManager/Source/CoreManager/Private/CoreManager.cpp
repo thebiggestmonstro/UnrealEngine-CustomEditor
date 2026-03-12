@@ -7,11 +7,12 @@
 #include "ObjectTools.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
-#include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
 #include "LevelEditorSubsystem.h"
 #include "SlateWidgets/AdvanceDeletionWidget.h"
 #include "CustomStyle/CoreManagerStyle.h"
+#include "LevelEditor.h"
+#include "Engine/Selection.h"
 
 #define LOCTEXT_NAMESPACE "FCoreManagerModule"
 
@@ -20,6 +21,8 @@ void FCoreManagerModule::StartupModule()
 	FCoreManagerStyle::InitializeIcons();
 	InitContentBrowserMenuExtention();
 	RegisterAdvanceDeletionTab();
+	InitLevelEditorExtention();
+	InitCustomSelectionEvent();
 }
 
 void FCoreManagerModule::ShutdownModule()
@@ -373,6 +376,75 @@ TArray<TSharedPtr<FAssetData>> FCoreManagerModule::GetAllAssetDataUnderSelectedF
 	}
 
 	return AvaiableAssetsData;
+}
+
+void FCoreManagerModule::InitLevelEditorExtention()
+{
+	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+
+	TArray<FLevelEditorModule::FLevelViewportMenuExtender_SelectedActors>& LevelEditorMenuExtenders = LevelEditorModule.GetAllLevelViewportContextMenuExtenders();
+
+	LevelEditorMenuExtenders.Add(FLevelEditorModule::FLevelViewportMenuExtender_SelectedActors::CreateRaw(this, &FCoreManagerModule::CustomLevelEditorMenuExtender));
+}
+
+TSharedRef<FExtender> FCoreManagerModule::CustomLevelEditorMenuExtender(const TSharedRef<FUICommandList> UICommandList, const TArray<AActor*> SelectedActors)
+{
+	TSharedRef<FExtender> MenuExtender = MakeShareable(new FExtender());
+
+	if (SelectedActors.Num() > 0)
+	{
+		MenuExtender->AddMenuExtension(
+			FName("ActorOptions"),
+			EExtensionHook::Before,
+			UICommandList,
+			FMenuExtensionDelegate::CreateRaw(this, &FCoreManagerModule::AddLevelEditorMenuEntry)
+		);
+	}
+
+	return MenuExtender;
+}
+
+void FCoreManagerModule::AddLevelEditorMenuEntry(FMenuBuilder& MenuBuilder)
+{
+	MenuBuilder.AddMenuEntry
+	(
+		FText::FromString(TEXT("Lock Actor Selection")),
+		FText::FromString(TEXT("Prevent actor from being selected")),
+		FSlateIcon(),
+		FExecuteAction::CreateRaw(this, &FCoreManagerModule::OnLockActorSelectionButtonClicked)
+	);
+
+	MenuBuilder.AddMenuEntry
+	(
+		FText::FromString(TEXT("Unlock all actor Selection")),
+		FText::FromString(TEXT("Remove the selection constraint on all actor")),
+		FSlateIcon(),
+		FExecuteAction::CreateRaw(this, &FCoreManagerModule::OnUnlockActorSelectionButtonClicked)
+	);
+}
+
+void FCoreManagerModule::OnLockActorSelectionButtonClicked()
+{
+	DebugHeader::Print(TEXT("Locked"), FColor::Cyan);
+}
+
+void FCoreManagerModule::OnUnlockActorSelectionButtonClicked()
+{
+	DebugHeader::Print(TEXT("Unlocked"), FColor::Red);
+}
+
+void FCoreManagerModule::InitCustomSelectionEvent()
+{
+	USelection* UserSelection = GEditor->GetSelectedActors();
+	UserSelection->SelectObjectEvent.AddRaw(this, &FCoreManagerModule::OnActorSelected);
+}
+
+void FCoreManagerModule::OnActorSelected(UObject* SelectedObject)
+{
+	if (AActor* SelectedActor = Cast<AActor>(SelectedObject))
+	{
+		DebugHeader::Print(SelectedActor->GetActorLabel(), FColor::Cyan);
+	}
 }
 
 bool FCoreManagerModule::DeleteSingleAssetForAssetList(const FAssetData& AssetDataToDelete)
