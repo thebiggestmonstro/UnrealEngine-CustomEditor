@@ -49,6 +49,12 @@ private:
 	TWeakObjectPtr<class UEditorActorSubsystem> WeakEditorActorSubsystem;
 	bool GetEditorActorSubsystem();
 
+	// Custom Editor UI Commands
+	TSharedPtr<class FUICommandList> CustomUICommands;
+	void InitCustomUICommands();
+	void OnSelectionLockHotKeyPressed();
+	void OnUnlockActorSelectionHotKeyPressed();
+
 public:
 	// ProccessDataForAdvanceDeletionTab
 	bool DeleteSingleAssetForAssetList(const FAssetData& AssetDataToDelete);

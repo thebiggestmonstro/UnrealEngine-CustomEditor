@@ -25,6 +25,7 @@ void FCoreManagerModule::StartupModule()
 	RegisterAdvanceDeletionTab();
 
 	FCoreManagerUICommands::Register();
+	InitCustomUICommands();
 
 	InitLevelEditorExtention();
 	InitCustomSelectionEvent();
@@ -387,6 +388,9 @@ void FCoreManagerModule::InitLevelEditorExtention()
 {
 	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 
+	TSharedRef<FUICommandList> ExistingLevelCommands = LevelEditorModule.GetGlobalLevelEditorActions();
+	ExistingLevelCommands->Append(CustomUICommands.ToSharedRef());
+
 	TArray<FLevelEditorModule::FLevelViewportMenuExtender_SelectedActors>& LevelEditorMenuExtenders = LevelEditorModule.GetAllLevelViewportContextMenuExtenders();
 
 	LevelEditorMenuExtenders.Add(FLevelEditorModule::FLevelViewportMenuExtender_SelectedActors::CreateRaw(this, &FCoreManagerModule::CustomLevelEditorMenuExtender));
@@ -571,6 +575,31 @@ bool FCoreManagerModule::GetEditorActorSubsystem()
 	}
 
 	return WeakEditorActorSubsystem.IsValid();
+}
+
+void FCoreManagerModule::InitCustomUICommands()
+{
+	CustomUICommands = MakeShareable(new FUICommandList());
+
+	CustomUICommands->MapAction(
+		FCoreManagerUICommands::Get().LockActorSelection,
+		FExecuteAction::CreateRaw(this, &FCoreManagerModule::OnSelectionLockHotKeyPressed)
+	);
+
+	CustomUICommands->MapAction(
+		FCoreManagerUICommands::Get().UnlockActorSelection,
+		FExecuteAction::CreateRaw(this, &FCoreManagerModule::OnUnlockActorSelectionHotKeyPressed)
+	);
+}
+
+void FCoreManagerModule::OnSelectionLockHotKeyPressed()
+{
+	OnLockActorSelectionButtonClicked();
+}
+
+void FCoreManagerModule::OnUnlockActorSelectionHotKeyPressed()
+{
+	OnUnlockActorSelectionButtonClicked();
 }
 
 bool FCoreManagerModule::DeleteSingleAssetForAssetList(const FAssetData& AssetDataToDelete)
