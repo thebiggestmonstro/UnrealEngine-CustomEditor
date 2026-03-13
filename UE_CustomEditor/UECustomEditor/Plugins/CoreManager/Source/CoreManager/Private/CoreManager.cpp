@@ -14,6 +14,7 @@
 #include "LevelEditor.h"
 #include "Engine/Selection.h"
 #include "Subsystems/EditorActorSubsystem.h"
+#include "CustomUICommands/CoreManagerUICommands.h"
 
 #define LOCTEXT_NAMESPACE "FCoreManagerModule"
 
@@ -22,6 +23,9 @@ void FCoreManagerModule::StartupModule()
 	FCoreManagerStyle::InitializeIcons();
 	InitContentBrowserMenuExtention();
 	RegisterAdvanceDeletionTab();
+
+	FCoreManagerUICommands::Register();
+
 	InitLevelEditorExtention();
 	InitCustomSelectionEvent();
 }
