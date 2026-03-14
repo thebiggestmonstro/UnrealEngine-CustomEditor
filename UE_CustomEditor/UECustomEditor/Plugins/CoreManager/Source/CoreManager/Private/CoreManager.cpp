@@ -15,6 +15,8 @@
 #include "Engine/Selection.h"
 #include "Subsystems/EditorActorSubsystem.h"
 #include "CustomUICommands/CoreManagerUICommands.h"
+#include "SceneOutlinerModule.h"
+#include "CustomOutlinerColumn/OutlinerSelectionLockColumn.h"
 
 #define LOCTEXT_NAMESPACE "FCoreManagerModule"
 
@@ -29,6 +31,8 @@ void FCoreManagerModule::StartupModule()
 
 	InitLevelEditorExtention();
 	InitCustomSelectionEvent();
+
+	InitSceneOutlinerColumnExtension();
 }
 
 void FCoreManagerModule::ShutdownModule()
@@ -600,6 +604,24 @@ void FCoreManagerModule::OnSelectionLockHotKeyPressed()
 void FCoreManagerModule::OnUnlockActorSelectionHotKeyPressed()
 {
 	OnUnlockActorSelectionButtonClicked();
+}
+
+void FCoreManagerModule::InitSceneOutlinerColumnExtension()
+{
+	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::LoadModuleChecked<FSceneOutlinerModule>(TEXT("SceneOutliner"));
+
+	FSceneOutlinerColumnInfo SelectionLockColumnInfo(
+		ESceneOutlinerColumnVisibility::Visible,
+		1,
+		FCreateSceneOutlinerColumn::CreateRaw(this, &FCoreManagerModule::OnCreateSelectionLockColumn)
+	);
+
+	SceneOutlinerModule.RegisterDefaultColumnType<FOutlinerSelectionLockColumn>(SelectionLockColumnInfo);
+}
+
+TSharedRef<ISceneOutlinerColumn> FCoreManagerModule::OnCreateSelectionLockColumn(ISceneOutliner& SceneOutliner)
+{
+	return MakeShareable(new FOutlinerSelectionLockColumn(SceneOutliner));
 }
 
 bool FCoreManagerModule::DeleteSingleAssetForAssetList(const FAssetData& AssetDataToDelete)

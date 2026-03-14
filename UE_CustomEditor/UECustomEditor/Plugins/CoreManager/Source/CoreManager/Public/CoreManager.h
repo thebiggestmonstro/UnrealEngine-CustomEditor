@@ -55,6 +55,10 @@ private:
 	void OnSelectionLockHotKeyPressed();
 	void OnUnlockActorSelectionHotKeyPressed();
 
+	// Scene Outliner Extension
+	void InitSceneOutlinerColumnExtension();
+	TSharedRef<class ISceneOutlinerColumn> OnCreateSelectionLockColumn(class ISceneOutliner& SceneOutliner);
+
 public:
 	// ProccessDataForAdvanceDeletionTab
 	bool DeleteSingleAssetForAssetList(const FAssetData& AssetDataToDelete);
