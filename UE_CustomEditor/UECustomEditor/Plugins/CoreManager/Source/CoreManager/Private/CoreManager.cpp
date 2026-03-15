@@ -468,6 +468,7 @@ void FCoreManagerModule::OnLockActorSelectionButtonClicked()
 		CurrentLockedActorNames.Append(SelectedActor->GetActorLabel());
 	}
 
+	RefreshSceneOutliner();
 	DebugHeader::ShowNotifyInfo(CurrentLockedActorNames);
 }
 
@@ -497,6 +498,7 @@ void FCoreManagerModule::OnUnlockActorSelectionButtonClicked()
 	if (AllLockedActors.Num() == 0)
 	{
 		DebugHeader::ShowNotifyInfo(TEXT("No selection locked actor currently"));
+		return;
 	}
 
 	FString UnlockedActorNames = TEXT("Lifted selection constraint for:");
@@ -509,6 +511,7 @@ void FCoreManagerModule::OnUnlockActorSelectionButtonClicked()
 		UnlockedActorNames.Append(LockedActor->GetActorLabel());
 	}
 
+	RefreshSceneOutliner();
 	DebugHeader::ShowNotifyInfo(UnlockedActorNames);
 }
 
@@ -700,6 +703,40 @@ void FCoreManagerModule::SyncContentBrowserToClickedAssetForAssetList(const FStr
 	TArray<FString> AssetsPathToSync;
 	AssetsPathToSync.Add(AssetPathToSync);
 	UEditorAssetLibrary::SyncBrowserToObjects(AssetsPathToSync);
+}
+
+void FCoreManagerModule::ProcessLockingForOutliner(AActor* ActorToProcess, bool bShouldLock)
+{
+	if (!GetEditorActorSubsystem())
+	{
+		return;
+	}
+
+	if (bShouldLock)
+	{
+		LockActorSelection(ActorToProcess);
+		WeakEditorActorSubsystem->SetActorSelectionState(ActorToProcess, false);
+		DebugHeader::ShowNotifyInfo(TEXT("Locked selection for:\n") + ActorToProcess->GetActorLabel());
+	}
+	else
+	{
+		UnlockActorSelection(ActorToProcess);
+		DebugHeader::ShowNotifyInfo(TEXT("Removed selection lock for:\n") + ActorToProcess->GetActorLabel());
+	}
+}
+
+void FCoreManagerModule::RefreshSceneOutliner()
+{
+	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+	TArray<TWeakPtr<ISceneOutliner>> SceneOutliners = LevelEditorModule.GetFirstLevelEditor()->GetAllSceneOutliners();
+
+	for (TWeakPtr<ISceneOutliner> SceneOutliner : SceneOutliners)
+	{
+		if (SceneOutliner.IsValid())
+		{
+			SceneOutliner.Pin()->FullRefresh();
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

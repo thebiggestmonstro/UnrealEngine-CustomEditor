@@ -44,7 +44,6 @@ private:
 	void OnActorSelected(UObject* SelectedObject);
 	void LockActorSelection(AActor* ActorToProcess);
 	void UnlockActorSelection(AActor* ActorToProcess);
-	bool CheckIsActorSelectionLocked(AActor* ActorToProcess);
 
 	TWeakObjectPtr<class UEditorActorSubsystem> WeakEditorActorSubsystem;
 	bool GetEditorActorSubsystem();
@@ -66,6 +65,11 @@ public:
 	void ListUnusedAssetsForAssetList(const TArray<TSharedPtr<FAssetData>>& AssetsDataToFilter, TArray<TSharedPtr<FAssetData>>& OutUnusedAssetsData);
 	void ListSameNameAssetsForAssetList(const TArray<TSharedPtr<FAssetData>>& AssetsDataToFilter, TArray<TSharedPtr<FAssetData>>& OutSameNameAssetsData);
 	void SyncContentBrowserToClickedAssetForAssetList(const FString& AssetPathToSync);
+
+	// Scene Outliner
+	bool CheckIsActorSelectionLocked(AActor* ActorToProcess);
+	void ProcessLockingForOutliner(AActor* ActorToProcess, bool bShouldLock);
+	void RefreshSceneOutliner();
 
 	TArray<FString> FolderPathsSelected;
 };
