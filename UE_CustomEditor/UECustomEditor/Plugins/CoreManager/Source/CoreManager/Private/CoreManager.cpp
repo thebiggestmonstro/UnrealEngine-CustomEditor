@@ -102,6 +102,12 @@ void FCoreManagerModule::AddContentBrowserMenuEntry(FMenuBuilder& MenuBuilder)
 
 void FCoreManagerModule::OnDeleteUnsuedAssetButtonClicked()
 {
+	if (ConstructedDockTab.IsValid())
+	{
+		DebugHeader::ShowMsgDialog(EAppMsgType::Ok, TEXT("Please close advance deletion tab before this operation"));
+		return;
+	}
+
 	if (FolderPathsSelected.Num() > 1)
 	{
 		DebugHeader::ShowMsgDialog(EAppMsgType::Ok, TEXT("You can only do this to one folder"));
@@ -162,6 +168,12 @@ void FCoreManagerModule::OnDeleteUnsuedAssetButtonClicked()
 
 void FCoreManagerModule::OnDeleteEmptyFoldersButtonClicked()
 {
+	if (ConstructedDockTab.IsValid())
+	{
+		DebugHeader::ShowMsgDialog(EAppMsgType::Ok, TEXT("Please close advance deletion tab before this operation"));
+		return;
+	}
+
 	PrepareAssetEnvironment(FolderPathsSelected[0]);
 
 	TArray<FString> FolderPathsArray = UEditorAssetLibrary::ListAssets(FolderPathsSelected[0], true, true);
@@ -352,12 +364,29 @@ void FCoreManagerModule::RegisterAdvanceDeletionTab()
 
 TSharedRef<SDockTab> FCoreManagerModule::OnSpawnAdvanceDeltionTab(const FSpawnTabArgs& SpawnTabArgs)
 {
-	return SNew(SDockTab).TabRole(ETabRole::NomadTab)
+	if (FolderPathsSelected.Num() == 0)
+	{
+		return SNew(SDockTab).TabRole(ETabRole::NomadTab);
+	}
+
+	ConstructedDockTab =  SNew(SDockTab).TabRole(ETabRole::NomadTab)
 		[
 			SNew(SAdvanceDeletionTab)
 				.AssetsDataToStore(GetAllAssetDataUnderSelectedFolder())
 				.CurrentSelectedFolder(FolderPathsSelected[0])
 		];
+
+	ConstructedDockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &FCoreManagerModule::OnAdvanceDeletionTabClosed));
+	return ConstructedDockTab.ToSharedRef();
+}
+
+void FCoreManagerModule::OnAdvanceDeletionTabClosed(TSharedRef<SDockTab> TabToClose)
+{
+	if (ConstructedDockTab.IsValid())
+	{
+		ConstructedDockTab.Reset();
+		FolderPathsSelected.Empty();
+	}
 }
 
 TArray<TSharedPtr<FAssetData>> FCoreManagerModule::GetAllAssetDataUnderSelectedFolder()

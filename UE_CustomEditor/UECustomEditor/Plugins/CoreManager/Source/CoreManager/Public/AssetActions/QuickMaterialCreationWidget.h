@@ -25,7 +25,7 @@ class COREMANAGER_API UQuickMaterialCreationWidget : public UEditorUtilityWidget
 	GENERATED_BODY()
 	
 public:
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, Category = "CreateMaterialFromSelectedTextures")
 	void CreateMaterialFromSelectedTextures();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CreateMaterialFromSelectedTextures")

@@ -30,6 +30,8 @@ private:
 	// CustomEditorTab
 	void RegisterAdvanceDeletionTab();
 	TSharedRef<SDockTab> OnSpawnAdvanceDeltionTab(const FSpawnTabArgs& SpawnTabArgs);
+	void OnAdvanceDeletionTabClosed(TSharedRef<SDockTab> TabToClose);
+	TSharedPtr<SDockTab> ConstructedDockTab;
 	TArray<TSharedPtr<FAssetData>> GetAllAssetDataUnderSelectedFolder();
 
 	// LevelEditorExtension
